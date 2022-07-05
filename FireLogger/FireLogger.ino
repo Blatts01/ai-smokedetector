@@ -6,6 +6,7 @@
 #include "Adafruit_BMP3XX.h"
 #include "Adafruit_SGP30.h"
 #include "Adafruit_SHT31.h"
+#include "Arduino_BHY2.h"
 
 /******************************/
 /*Defines*/
