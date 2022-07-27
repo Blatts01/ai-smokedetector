@@ -8,9 +8,9 @@
 #include "Adafruit_SHT31.h"
 #include "Arduino_BHY2.h"
 #include "Nicla_System.h"
-#include "neuton.h"
+#include <ArduinoBLE.h>
+#include "neuton.h" 
 
-using namespace nicla;
 
 /******************************/
 /*Defines*/
@@ -32,6 +32,13 @@ int16_t ret;
 uint8_t auto_clean_days = 4;
 uint32_t auto_clean;
 
+
+BLEService fire_service("fff0");
+BLEIntCharacteristic fire_characteristic("fff1", BLERead | BLEBroadcast);
+
+// Advertising parameters should have a global scope. Do NOT define them in 'setup' or in 'loop'
+const uint8_t manufactData[4] = {0x01, 0x02, 0x03, 0x04};
+const uint8_t serviceData[1] = {0x00};
 
 /******************************/
 /*Helper Functions*/
@@ -118,12 +125,36 @@ void setup() {
   else{
     Serial.println("DISABLED");
   }
+
+  if (!BLE.begin()) {
+    Serial.println("failed to initialize BLE!");
+    while (1);
+  }
+
+  // set advertised local name and service UUID:
+  BLE.setLocalName("AI Fire detector");
+  BLE.setAdvertisedService(fire_service);
+
+  // add the characteristic to the service
+  fire_service.addCharacteristic(fire_characteristic);
+
+  // add service
+  BLE.addService(ledService);
+
+  // set the initial value for the characeristic:
+  fire_characteristic.writeValue(0);
+
+  // start advertising
+  BLE.advertise();
+
+  Serial.println("BLE Fire Peripheral");
+  
   delay(1000);
   leds.begin();
 }
 
 void loop() {
-
+  uint16_t output;
   dataString = "";
   float temperature = sht31.readTemperature();
   float humidity = sht31.readHumidity();
@@ -171,7 +202,7 @@ void loop() {
     };
 
     if (neuton_model_set_inputs(inputs) == 0) {
-      uint16_t output;
+
       float *probabilities;
       if (neuton_model_run_inference(&predictedClass, &probabilities) == 0) {
         // code for handling prediction result
@@ -209,6 +240,26 @@ void loop() {
     Serial.print(" & TVOC: 0x"); Serial.println(TVOC_base, HEX);
   }
   loopCnt++;
-  delay(1000);
 
+
+  // listen for Bluetooth® Low Energy peripherals to connect:
+  BLEDevice central = BLE.central();
+
+  // if a central is connected to peripheral:
+  if (central) {
+    Serial.print("Connected to central: ");
+    // print the central's MAC address:
+    Serial.println(central.address());
+
+    // while the central is still connected to peripheral:
+    if (central.connected()) {
+      fire_characteristic.writeValue((char)output);
+    }
+
+    // when the central disconnects, print it out:
+    Serial.print(F("Disconnected from central: "));
+    Serial.println(central.address());
+  }
+  
+  delay(1000);
 }
