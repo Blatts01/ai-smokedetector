@@ -33,10 +33,11 @@ void loop() {
   Serial.write("Model Flash Usage:");
   Serial.println((String)flashUsage+ " Byte");
 
-  uint64_t start = micros();
+  
   float *outputs;
   uint64_t inference_time;
   if (neuton_model_set_inputs(inputs) == 0) {
+    uint64_t start = micros();
     if (neuton_model_run_inference(NULL, &outputs) == 0)
     {
       uint64_t stop = micros();
@@ -45,6 +46,6 @@ void loop() {
   }  
   Serial.write("Model inference time: ");
   print_uint64_t(inference_time);
-  Serial.write(" ms \n");
+  Serial.write(" us \n");
   delay(1000);
 }
